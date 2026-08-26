@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Video Downloader - Fast & Free</title>
+    <meta name="description" content="Download videos from YouTube, Shorts, Playlists, and more. Fast, free, and simple to use.">
+    <link rel="stylesheet" href="assets/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container nav-container">
+            <a href="#" class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>VidLoader</span>
+            </a>
+            <nav class="nav">
+                <a href="#">Home</a>
+                <a href="#supported">Supported Sites</a>
+                <a href="#faq">FAQ</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="hero">
+            <div class="container hero-container">
+                <h1 class="hero-title">Download Any Video, <span class="gradient-text">Instantly.</span></h1>
+                <p class="hero-subtitle">Paste a link from YouTube, Vimeo, Twitter, and more to get high-quality video and audio formats.</p>
+                
+                <form id="download-form" class="download-form">
+                    <div class="input-group">
+                        <input type="url" id="url-input" class="url-input" placeholder="Paste your video link here..." required aria-label="Video URL">
+                        <button type="button" id="paste-btn" class="btn btn-icon" aria-label="Paste from clipboard">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                        </button>
+                    </div>
+                    <button type="submit" id="analyze-btn" class="btn btn-primary">
+                        <span>Analyze</span>
+                    </button>
+                </form>
+                
+                <div id="error-message" class="error-message hidden" role="alert"></div>
+            </div>
+        </section>
+
+        <section id="results-section" class="results-section hidden">
+            <div class="container">
+                <div class="results-card glass-panel">
+                    
+                    <!-- Loading Skeleton -->
+                    <div id="loading-skeleton" class="skeleton-container hidden">
+                        <div class="skeleton-thumb"></div>
+                        <div class="skeleton-details">
+                            <div class="skeleton-line title"></div>
+                            <div class="skeleton-line meta"></div>
+                            <div class="skeleton-formats">
+                                <div class="skeleton-btn"></div>
+                                <div class="skeleton-btn"></div>
+                                <div class="skeleton-btn"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actual Results -->
+                    <div id="result-content" class="result-content hidden">
+                        <div class="video-preview">
+                            <div class="thumb-container">
+                                <img id="res-thumbnail" src="" alt="Video Thumbnail">
+                                <span id="res-duration" class="duration-badge"></span>
+                            </div>
+                            <div class="video-info">
+                                <h2 id="res-title" class="video-title"></h2>
+                                <p class="platform-badge" id="res-platform"></p>
+                            </div>
+                        </div>
+                        
+                        <div class="formats-container">
+                            <!-- Rendered dynamically by script.js -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <section id="supported" class="supported-section">
+            <div class="container">
+                <h2 class="section-title">Supported Platforms</h2>
+                <div class="platforms-grid">
+                    <div class="platform-card"><span class="check">✓</span> YouTube</div>
+                    <div class="platform-card"><span class="check">✓</span> YouTube Shorts</div>
+                    <div class="platform-card"><span class="check">✓</span> Vimeo</div>
+                    <div class="platform-card"><span class="check">✓</span> Twitter / X</div>
+                    <div class="platform-card"><span class="check">✓</span> Instagram (Public)</div>
+                    <div class="platform-card"><span class="check">✓</span> Facebook Video</div>
+                    <div class="platform-card"><span class="check">✓</span> TikTok</div>
+                    <div class="platform-card"><span class="check">✓</span> Dailymotion</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>&copy; 2026 VidLoader. All rights reserved.</p>
+                <div class="footer-links">
+                    <a href="#">Terms of Service</a>
+                    <a href="#">Privacy Policy</a>
+                </div>
+            </div>
+            <div class="disclaimer">
+                <strong>Disclaimer:</strong> This tool is for personal use only. Users should only download content they have permission or legal rights to download. We do not host or store any copyrighted material.
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/script.js"></script>
+</body>
+</html>
