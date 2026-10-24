@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Video Downloader - Fast & Free</title>
-    <meta name="description" content="Download videos from YouTube, Shorts, Playlists, and more. Fast, free, and simple to use.">
+    <title>VidLoader — Universal Video Downloader</title>
+    <meta name="description" content="Download videos from YouTube, Shorts, Vimeo, Twitter, TikTok and more. Fast, free, and simple to use. Supports 4K, 1080p, HDR, and all audio tracks.">
     <link rel="stylesheet" href="assets/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -16,7 +16,7 @@
                 <span>VidLoader</span>
             </a>
             <nav class="nav">
-                <a href="#">Home</a>
+                <a href="#how-it-works">How It Works</a>
                 <a href="#supported">Supported Sites</a>
                 <a href="#faq">FAQ</a>
             </nav>
@@ -24,42 +24,49 @@
     </header>
 
     <main class="main">
+        <!-- ── Hero ──────────────────────────────────────────────── -->
         <section class="hero">
             <div class="container hero-container">
                 <h1 class="hero-title">Download Any Video, <span class="gradient-text">Instantly.</span></h1>
-                <p class="hero-subtitle">Paste a link from YouTube, Vimeo, Twitter, and more to get high-quality video and audio formats.</p>
-                
+                <p class="hero-subtitle">Paste a link from YouTube, Vimeo, Twitter, TikTok and more — get every quality in real video+audio, ready to play.</p>
+
                 <form id="download-form" class="download-form">
                     <div class="input-group">
-                        <input type="url" id="url-input" class="url-input" placeholder="Paste your video link here..." required aria-label="Video URL">
-                        <button type="button" id="paste-btn" class="btn btn-icon" aria-label="Paste from clipboard">
+                        <input type="url" id="url-input" class="url-input" placeholder="Paste your video link here..." required aria-label="Video URL" autocomplete="off" spellcheck="false">
+                        <button type="button" id="paste-btn" class="btn btn-icon" aria-label="Paste from clipboard" title="Paste from clipboard">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
                         </button>
                     </div>
                     <button type="submit" id="analyze-btn" class="btn btn-primary">
-                        <span>Analyze</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <span>Analyze Video</span>
                     </button>
                 </form>
-                
+
                 <div id="error-message" class="error-message hidden" role="alert"></div>
             </div>
         </section>
 
+        <!-- ── Results ───────────────────────────────────────────── -->
         <section id="results-section" class="results-section hidden">
             <div class="container">
                 <div class="results-card glass-panel">
-                    
+
                     <!-- Loading Skeleton -->
                     <div id="loading-skeleton" class="skeleton-container hidden">
-                        <div class="skeleton-thumb"></div>
-                        <div class="skeleton-details">
-                            <div class="skeleton-line title"></div>
-                            <div class="skeleton-line meta"></div>
-                            <div class="skeleton-formats">
-                                <div class="skeleton-btn"></div>
-                                <div class="skeleton-btn"></div>
-                                <div class="skeleton-btn"></div>
+                        <div class="skeleton-preview">
+                            <div class="skeleton-thumb"></div>
+                            <div class="skeleton-details">
+                                <div class="skeleton-line title"></div>
+                                <div class="skeleton-line meta"></div>
+                                <div class="skeleton-line meta short"></div>
                             </div>
+                        </div>
+                        <div class="skeleton-formats">
+                            <div class="skeleton-btn"></div>
+                            <div class="skeleton-btn"></div>
+                            <div class="skeleton-btn"></div>
+                            <div class="skeleton-btn"></div>
                         </div>
                     </div>
 
@@ -67,15 +74,16 @@
                     <div id="result-content" class="result-content hidden">
                         <div class="video-preview">
                             <div class="thumb-container">
-                                <img id="res-thumbnail" src="" alt="Video Thumbnail">
+                                <img id="res-thumbnail" src="" alt="Video Thumbnail" loading="lazy">
                                 <span id="res-duration" class="duration-badge"></span>
                             </div>
                             <div class="video-info">
                                 <h2 id="res-title" class="video-title"></h2>
                                 <p class="platform-badge" id="res-platform"></p>
+                                <p id="res-uploader" class="uploader-name hidden"></p>
                             </div>
                         </div>
-                        
+
                         <div class="formats-container">
                             <!-- Rendered dynamically by script.js -->
                         </div>
@@ -85,6 +93,31 @@
             </div>
         </section>
 
+        <!-- ── How It Works ──────────────────────────────────────── -->
+        <section id="how-it-works" class="how-section">
+            <div class="container">
+                <h2 class="section-title">How It Works</h2>
+                <div class="steps-grid">
+                    <div class="step-card">
+                        <div class="step-num">1</div>
+                        <h3>Paste the URL</h3>
+                        <p>Copy any video link from YouTube, Vimeo, TikTok, or another supported platform and paste it into the input box above.</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">2</div>
+                        <h3>Analyze</h3>
+                        <p>Click "Analyze Video." Our server fetches all available video qualities and audio tracks for that video.</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">3</div>
+                        <h3>Download</h3>
+                        <p>Choose your preferred quality — 144p to 4K — or an audio-only track. Click Download and your file saves to your device.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Supported Platforms ────────────────────────────────── -->
         <section id="supported" class="supported-section">
             <div class="container">
                 <h2 class="section-title">Supported Platforms</h2>
@@ -97,6 +130,43 @@
                     <div class="platform-card"><span class="check">✓</span> Facebook Video</div>
                     <div class="platform-card"><span class="check">✓</span> TikTok</div>
                     <div class="platform-card"><span class="check">✓</span> Dailymotion</div>
+                    <div class="platform-card"><span class="check">✓</span> Reddit Videos</div>
+                    <div class="platform-card"><span class="check">✓</span> Twitch Clips</div>
+                    <div class="platform-card"><span class="check">✓</span> SoundCloud</div>
+                    <div class="platform-card"><span class="check">✓</span> 1000+ other sites</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── FAQ ───────────────────────────────────────────────── -->
+        <section id="faq" class="faq-section">
+            <div class="container">
+                <h2 class="section-title">Frequently Asked Questions</h2>
+                <div class="faq-list">
+                    <details class="faq-item">
+                        <summary>Why do high quality videos (1080p, 4K) take longer to download?</summary>
+                        <p>YouTube stores high-quality video and audio as separate streams. Our server downloads both and merges them into a single MP4 file using ffmpeg before sending it to you. This ensures you get proper video+audio in every quality.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Why do I see multiple audio tracks?</summary>
+                        <p>Many YouTube videos have multiple language audio tracks (e.g., English, Hindi, dubbed versions). The Audio Downloads section shows all of them separately so you can download whichever language you need.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>The download starts but produces a corrupt file — what's wrong?</summary>
+                        <p>This usually means ffmpeg.exe is missing from the project folder. ffmpeg is required to merge video and audio streams. Make sure <code>ffmpeg.exe</code> is placed in the project root directory alongside <code>yt-dlp.exe</code>.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Is it legal to download videos?</summary>
+                        <p>Downloading is only legal for content you own, have explicit permission to download, or content that is in the public domain. Always respect copyright laws and the platform's terms of service. This tool is for personal use only.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Why is the video taking so long?</summary>
+                        <p>Large files (especially 1080p and above) take time to download and merge on the server. The download starts automatically once the server finishes processing. A typical 10-minute 1080p video may take 30–90 seconds to prepare.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Which video format is best?</summary>
+                        <p>MP4 with H.264 (avc1) is the most compatible format — it works in every media player, phone, and browser. AV1 and VP9 formats offer better compression but need a modern player. For audio, M4A (AAC) is the most compatible choice.</p>
+                    </details>
                 </div>
             </div>
         </section>
@@ -105,17 +175,66 @@
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
-                <p>&copy; 2026 VidLoader. All rights reserved.</p>
+                <div class="footer-brand">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <strong>VidLoader</strong>
+                    <span class="footer-year">© 2026</span>
+                </div>
                 <div class="footer-links">
-                    <a href="#">Terms of Service</a>
-                    <a href="#">Privacy Policy</a>
+                    <a href="#how-it-works">How It Works</a>
+                    <a href="#supported">Supported Sites</a>
+                    <a href="#faq">FAQ</a>
                 </div>
             </div>
             <div class="disclaimer">
-                <strong>Disclaimer:</strong> This tool is for personal use only. Users should only download content they have permission or legal rights to download. We do not host or store any copyrighted material.
+                <strong>Disclaimer:</strong> This tool is for personal use only. Only download content you have the legal right to download. We do not host, store, or distribute any copyrighted material. Powered by <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noopener">yt-dlp</a> and <a href="https://ffmpeg.org" target="_blank" rel="noopener">ffmpeg</a>.
             </div>
         </div>
     </footer>
+
+    <!-- Hidden iframe for background file streaming (no blank tabs!) -->
+    <iframe id="dl-iframe" style="display:none;" aria-hidden="true"></iframe>
+
+    <!-- ── Download Progress Modal ────────────────────────────────────── -->
+    <div id="dl-modal" class="dl-modal hidden" role="dialog" aria-modal="true" aria-labelledby="dl-modal-title">
+        <div class="dl-modal-backdrop"></div>
+        <div class="dl-modal-card">
+            <button id="dl-modal-close" class="dl-modal-close" aria-label="Close modal">&times;</button>
+            <div class="dl-modal-icon-wrap">
+                <svg id="dl-spinner" class="dl-spinner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.2"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+                </svg>
+                <div id="dl-check" class="dl-check-icon hidden">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </div>
+            </div>
+            
+            <h3 id="dl-modal-title" class="dl-modal-title">Preparing High-Speed Download</h3>
+            <div id="dl-modal-badge" class="dl-modal-badge">1080p MP4</div>
+            <p id="dl-modal-filename" class="dl-modal-filename">Video Title</p>
+
+            <div class="dl-progress-header">
+                <span id="dl-modal-percent" class="dl-modal-percent">15%</span>
+                <div class="dl-modal-metrics">
+                    <span id="dl-modal-timer" class="dl-metric-tag">⏱️ 0s</span>
+                    <span class="dl-metric-tag dl-speed-tag">⚡ 5x Parallel</span>
+                </div>
+            </div>
+
+            <div class="dl-progress-track">
+                <div id="dl-progress-bar" class="dl-progress-bar"></div>
+            </div>
+
+            <p id="dl-modal-status" class="dl-modal-status">⚡ Initializing 5x parallel multi-threaded connection...</p>
+
+            <div id="dl-modal-footer" class="dl-modal-footer hidden">
+                <a id="dl-modal-direct" href="#" class="btn-direct-dl">Click here if download doesn't start automatically</a>
+            </div>
+        </div>
+    </div>
 
     <script src="assets/script.js"></script>
 </body>

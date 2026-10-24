@@ -1,0 +1,23 @@
+# Windows executables exceeding GitHub 100MB limit
+ffmpeg.exe
+ffprobe.exe
+yt-dlp.exe.old
+
+# Temporary runtime and download folders
+tmp/*
+!tmp/.htaccess
+
+# Cache and rate limit store
+cache/meta/*
+cache/ratelimit/*
+!cache/.htaccess
+
+# Runtime logs
+logs/*.log
+!logs/.htaccess
+
+# Local tests and artifacts
+test.mp4
+dump.json
+screenshots/
+.gemini/
