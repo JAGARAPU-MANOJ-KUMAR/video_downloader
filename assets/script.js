@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingSkeleton = document.getElementById('loading-skeleton');
     const resultContent   = document.getElementById('result-content');
 
+    const singleVideoView = document.getElementById('single-video-view');
+    const playlistView    = document.getElementById('playlist-view');
+    const playlistBanner  = document.getElementById('playlist-banner');
+    const btnLoadPlaylist = document.getElementById('btn-load-playlist');
+
     const resThumb    = document.getElementById('res-thumbnail');
     const resDuration = document.getElementById('res-duration');
     const resTitle    = document.getElementById('res-title');
@@ -32,10 +37,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const dlIframe       = document.getElementById('dl-iframe');
     const dlBackdrop     = document.querySelector('.dl-modal-backdrop');
 
+    // Batch Playlist Download Modal Elements
+    const batchModal          = document.getElementById('batch-modal');
+    const batchModalClose     = document.getElementById('batch-modal-close');
+    const batchModalTitle     = document.getElementById('batch-modal-title');
+    const batchModalSubtitle  = document.getElementById('batch-modal-subtitle');
+    const batchCurrentNum     = document.getElementById('batch-current-num');
+    const batchTotalNum       = document.getElementById('batch-total-num');
+    const batchOverallPercent = document.getElementById('batch-overall-percent');
+    const batchOverallBar     = document.getElementById('batch-overall-bar');
+    const batchItemThumb      = document.getElementById('batch-item-thumb');
+    const batchItemBadge      = document.getElementById('batch-item-badge');
+    const batchItemTitle      = document.getElementById('batch-item-title');
+    const batchItemStatus     = document.getElementById('batch-item-status');
+    const btnBatchSkip        = document.getElementById('btn-batch-skip');
+    const btnBatchStop        = document.getElementById('btn-batch-stop');
+    const btnBatchDone        = document.getElementById('btn-batch-done');
+
     let currentVideoUrl = '';
+    let detectedPlaylistUrl = '';
     let pollTimer       = null;
     let autoCloseTimer  = null;
     let progressTimer   = null;
+
+    // Batch Queue State
+    let batchQueue            = [];
+    let batchIndex            = 0;
+    let batchIsRunning        = false;
+    let batchPollTimer        = null;
+    let batchItemTimeoutTimer = null;
 
     // ── Clipboard Paste ───────────────────────────────────────────
     pasteBtn.addEventListener('click', async () => {
@@ -48,11 +78,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Form Submit ───────────────────────────────────────────────
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
         e.preventDefault();
         const url = urlInput.value.trim();
         if (!url) return;
+        fetchAnalyze(url, 'auto');
+    });
 
+    // ── Companion Playlist Banner Click ───────────────────────────
+    if (btnLoadPlaylist) {
+        btnLoadPlaylist.addEventListener('click', () => {
+            if (detectedPlaylistUrl) {
+                urlInput.value = detectedPlaylistUrl;
+                fetchAnalyze(detectedPlaylistUrl, 'playlist');
+            }
+        });
+    }
+
+    async function fetchAnalyze(url, mode = 'auto') {
         resetUI();
         showLoading();
 
@@ -60,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const resp = await fetch('api.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'analyze', url })
+                body: JSON.stringify({ action: 'analyze', url, mode })
             });
 
             const json = await resp.json();
@@ -75,13 +118,19 @@ document.addEventListener('DOMContentLoaded', () => {
             hideLoading();
             showError(err.message);
         }
-    });
+    }
 
     // ── UI Helpers ────────────────────────────────────────────────
     function resetUI() {
         errorMsg.classList.add('hidden');
         resultsSection.classList.add('hidden');
         resultContent.classList.add('hidden');
+        if (playlistBanner) playlistBanner.classList.add('hidden');
+        if (singleVideoView) singleVideoView.classList.remove('hidden');
+        if (playlistView) {
+            playlistView.classList.add('hidden');
+            playlistView.innerHTML = '';
+        }
         const fc = document.querySelector('.formats-container');
         if (fc) fc.innerHTML = '';
     }
@@ -117,6 +166,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderResults(data) {
         hideLoading();
         resultContent.classList.remove('hidden');
+
+        // Check if Playlist
+        if (data.type === 'playlist') {
+            if (singleVideoView) singleVideoView.classList.add('hidden');
+            if (playlistBanner) playlistBanner.classList.add('hidden');
+            if (playlistView) {
+                playlistView.classList.remove('hidden');
+                renderPlaylistView(data);
+            }
+            return;
+        }
+
+        // Single Video Mode
+        if (singleVideoView) singleVideoView.classList.remove('hidden');
+        if (playlistView) playlistView.classList.add('hidden');
+
+        // Check for companion playlist in URL
+        const rawUrl = data.source_url || currentVideoUrl;
+        const listMatch = rawUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+        if (listMatch && listMatch[1]) {
+            detectedPlaylistUrl = 'https://www.youtube.com/playlist?list=' + listMatch[1];
+            if (playlistBanner) playlistBanner.classList.remove('hidden');
+        } else {
+            if (playlistBanner) playlistBanner.classList.add('hidden');
+            detectedPlaylistUrl = '';
+        }
 
         resThumb.src            = data.thumbnail || 'https://placehold.co/640x360/1e293b/94a3b8?text=No+Thumbnail';
         resTitle.textContent    = data.title     || 'Unknown Title';
@@ -668,6 +743,338 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dlBackdrop) {
         dlBackdrop.addEventListener('click', closeDlModal);
     }
+
+    // ── Playlist View Rendering ───────────────────────────────────
+    function renderPlaylistView(data) {
+        playlistView.innerHTML = '';
+
+        const entries = data.entries || [];
+        if (!entries.length) {
+            playlistView.innerHTML = `
+                <div class="empty-playlist-msg">
+                    <h3>No videos found in this playlist</h3>
+                    <p>The playlist may be empty, private, or restricted.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 1. Playlist Hero Banner
+        const hero = document.createElement('div');
+        hero.className = 'playlist-hero';
+        const heroThumb = data.thumbnail || (entries[0] ? entries[0].thumbnail : 'https://placehold.co/320x180/1e293b/94a3b8?text=Playlist');
+        hero.innerHTML = `
+            <div class="playlist-hero-thumb-wrap">
+                <img src="${heroThumb}" alt="${safeAttr(data.title)}" class="playlist-hero-thumb">
+                <span class="playlist-badge">📋 PLAYLIST</span>
+            </div>
+            <div class="playlist-hero-info">
+                <div class="playlist-meta-tags">
+                    <span class="platform-badge">${(data.platform || 'YOUTUBE').toUpperCase()}</span>
+                    <span class="badge badge-entries-count">📑 ${data.total_videos || entries.length} Videos</span>
+                </div>
+                <h2 class="playlist-title">${data.title || 'YouTube Playlist'}</h2>
+                ${data.uploader ? `<p class="uploader-name">👤 ${data.uploader}</p>` : ''}
+            </div>
+        `;
+        playlistView.appendChild(hero);
+
+        // 2. Batch Toolbar
+        const toolbar = document.createElement('div');
+        toolbar.className = 'playlist-toolbar';
+        toolbar.innerHTML = `
+            <div class="toolbar-left">
+                <label class="select-all-label">
+                    <input type="checkbox" id="pl-select-all" checked>
+                    <span>Select All (<span id="pl-selected-count">${entries.length}</span> / ${entries.length})</span>
+                </label>
+            </div>
+            <div class="toolbar-right">
+                <div class="batch-preset-wrap">
+                    <label for="batch-preset-select" class="preset-label">Format:</label>
+                    <select id="batch-preset-select" class="batch-preset-select">
+                        <option value="best_mp4">🎬 Best Quality MP4 (1080p/720p)</option>
+                        <option value="fast_mp4">⚡ Fast MP4 (360p - Instant)</option>
+                        <option value="mp3">🎵 MP3 Audio (Universal 320kbps)</option>
+                        <option value="m4a">🔊 M4A Audio (High Quality AAC)</option>
+                    </select>
+                </div>
+                <button type="button" id="btn-batch-download" class="btn-batch-download">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Download Selected (<span id="btn-selected-num">${entries.length}</span>)</span>
+                </button>
+            </div>
+        `;
+        playlistView.appendChild(toolbar);
+
+        // 3. Playlist Entries Container
+        const listContainer = document.createElement('div');
+        listContainer.className = 'playlist-entries-list';
+
+        entries.forEach((entry, idx) => {
+            const card = document.createElement('div');
+            card.className = 'playlist-entry-card';
+            card.dataset.index = idx;
+
+            card.innerHTML = `
+                <div class="entry-checkbox-col">
+                    <input type="checkbox" class="pl-entry-check" data-index="${idx}" checked>
+                </div>
+                <div class="entry-num-col">#${entry.index || (idx + 1)}</div>
+                <div class="entry-thumb-col">
+                    <img src="${entry.thumbnail || 'https://placehold.co/120x68/1e293b/94a3b8?text=Thumb'}" alt="" loading="lazy">
+                    <span class="entry-duration">${formatDuration(entry.duration)}</span>
+                </div>
+                <div class="entry-info-col">
+                    <a href="${entry.url}" target="_blank" rel="noopener" class="entry-title" title="${safeAttr(entry.title)}">${entry.title}</a>
+                    <span class="entry-uploader">${entry.uploader || data.uploader || ''}</span>
+                </div>
+                <div class="entry-actions-col">
+                    <button type="button" class="btn-entry-action btn-quick-mp4" title="Quick Download MP4 (Best Quality)">
+                        <span>🎬 MP4</span>
+                    </button>
+                    <button type="button" class="btn-entry-action btn-quick-mp3" title="Quick Download MP3 Audio">
+                        <span>🎵 MP3</span>
+                    </button>
+                    <button type="button" class="btn-entry-action btn-inspect" title="Inspect all formats & subtitles for this video">
+                        <span>🔍 Formats</span>
+                    </button>
+                </div>
+            `;
+
+            // Quick MP4
+            card.querySelector('.btn-quick-mp4').addEventListener('click', () => {
+                const url = 'download.php'
+                    + '?url=' + encodeURIComponent(entry.url)
+                    + '&format_id=' + encodeURIComponent('bestvideo+bestaudio/best')
+                    + '&ext=mp4&type=video&title=' + encodeURIComponent(entry.title);
+                startDownload(url, entry.title, 'Best MP4');
+            });
+
+            // Quick MP3
+            card.querySelector('.btn-quick-mp3').addEventListener('click', () => {
+                const url = 'download.php'
+                    + '?url=' + encodeURIComponent(entry.url)
+                    + '&format_id=mp3&ext=mp3&type=audio&title=' + encodeURIComponent(entry.title);
+                startDownload(url, entry.title, 'MP3 Audio');
+            });
+
+            // Inspect Video
+            card.querySelector('.btn-inspect').addEventListener('click', () => {
+                urlInput.value = entry.url;
+                fetchAnalyze(entry.url, 'auto');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            listContainer.appendChild(card);
+        });
+
+        playlistView.appendChild(listContainer);
+
+        // Wire Select All / Deselect All
+        const selectAllCb = toolbar.querySelector('#pl-select-all');
+        const selectedCountSpan = toolbar.querySelector('#pl-selected-count');
+        const btnSelectedNum = toolbar.querySelector('#btn-selected-num');
+        const itemCheckboxes = listContainer.querySelectorAll('.pl-entry-check');
+
+        function updateSelectedCounts() {
+            const checked = listContainer.querySelectorAll('.pl-entry-check:checked');
+            selectedCountSpan.textContent = checked.length;
+            btnSelectedNum.textContent = checked.length;
+            selectAllCb.checked = (checked.length === itemCheckboxes.length);
+            selectAllCb.indeterminate = (checked.length > 0 && checked.length < itemCheckboxes.length);
+        }
+
+        selectAllCb.addEventListener('change', () => {
+            itemCheckboxes.forEach(cb => cb.checked = selectAllCb.checked);
+            updateSelectedCounts();
+        });
+
+        itemCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateSelectedCounts);
+        });
+
+        // Wire Start Batch Download Button
+        const btnBatchStart = toolbar.querySelector('#btn-batch-download');
+        const presetSelect = toolbar.querySelector('#batch-preset-select');
+
+        btnBatchStart.addEventListener('click', () => {
+            const checkedBoxes = Array.from(listContainer.querySelectorAll('.pl-entry-check:checked'));
+            if (!checkedBoxes.length) {
+                alert('Please select at least one video to download.');
+                return;
+            }
+            const selectedEntries = checkedBoxes.map(cb => entries[parseInt(cb.dataset.index, 10)]);
+            const presetKey = presetSelect.value;
+            startBatchQueue(selectedEntries, presetKey);
+        });
+    }
+
+    // ── Batch Download Queue Engine ───────────────────────────────
+    function startBatchQueue(entries, presetKey) {
+        batchQueue = entries;
+        batchIndex = 0;
+        batchIsRunning = true;
+
+        const presets = {
+            'best_mp4': { format_id: 'bestvideo+bestaudio/best', ext: 'mp4', type: 'video', label: 'Best MP4' },
+            'fast_mp4': { format_id: '18', ext: 'mp4', type: 'video', label: '360p MP4' },
+            'mp3':      { format_id: 'mp3', ext: 'mp3', type: 'audio', label: 'MP3 Audio' },
+            'm4a':      { format_id: '140', ext: 'm4a', type: 'audio', label: 'M4A Audio' }
+        };
+        const currentPreset = presets[presetKey] || presets['best_mp4'];
+
+        // Reset and display Batch Modal
+        batchModal.classList.remove('hidden');
+        batchModalTitle.textContent = 'Batch Playlist Downloader';
+        batchModalSubtitle.textContent = `Downloading 1 of ${batchQueue.length} items`;
+        batchTotalNum.textContent = batchQueue.length;
+        batchOverallPercent.textContent = '0%';
+        batchOverallBar.style.width = '0%';
+        btnBatchDone.classList.add('hidden');
+        btnBatchSkip.classList.remove('hidden');
+        btnBatchStop.classList.remove('hidden');
+
+        processNextBatchItem(currentPreset);
+    }
+
+    function processNextBatchItem(preset) {
+        if (!batchIsRunning) return;
+
+        if (batchIndex >= batchQueue.length) {
+            // Finished all items!
+            batchOverallBar.style.width = '100%';
+            batchOverallPercent.textContent = '100%';
+            batchItemStatus.textContent = '🎉 All selected videos have been downloaded to your Downloads folder!';
+            batchModalTitle.textContent = '🎉 Batch Download Complete!';
+            btnBatchDone.classList.remove('hidden');
+            btnBatchSkip.classList.add('hidden');
+            btnBatchStop.classList.add('hidden');
+            batchIsRunning = false;
+            return;
+        }
+
+        const item = batchQueue[batchIndex];
+        const displayIdx = batchIndex + 1;
+        batchCurrentNum.textContent = displayIdx;
+        batchModalSubtitle.textContent = `Downloading ${displayIdx} of ${batchQueue.length} items`;
+
+        // Calculate progress percentage
+        const overallPct = Math.round((batchIndex / batchQueue.length) * 100);
+        batchOverallBar.style.width = overallPct + '%';
+        batchOverallPercent.textContent = overallPct + '%';
+
+        // Update current item card
+        batchItemThumb.src = item.thumbnail || 'https://placehold.co/120x68/1e293b/94a3b8?text=Thumb';
+        batchItemBadge.textContent = preset.label;
+        batchItemTitle.textContent = item.title;
+        batchItemStatus.textContent = `⚡ Connecting & downloading #${displayIdx}: "${item.title}"...`;
+
+        // Generate tracking token
+        const token = 'dl_batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        const dlUrl = 'download.php'
+            + '?url=' + encodeURIComponent(item.url)
+            + '&format_id=' + encodeURIComponent(preset.format_id)
+            + '&ext=' + encodeURIComponent(preset.ext)
+            + '&type=' + encodeURIComponent(preset.type)
+            + '&title=' + encodeURIComponent(item.title)
+            + '&token=' + encodeURIComponent(token);
+
+        // Trigger download in background iframe
+        dlIframe.src = dlUrl;
+
+        // Poll for completion cookie
+        const cookieName = 'vidloader_dl_' + token;
+        clearInterval(batchPollTimer);
+        clearTimeout(batchItemTimeoutTimer);
+
+        batchPollTimer = setInterval(() => {
+            if (document.cookie.includes(cookieName + '=done')) {
+                clearInterval(batchPollTimer);
+                clearTimeout(batchItemTimeoutTimer);
+                document.cookie = cookieName + '=; Path=/; Max-Age=0';
+
+                // Mark current item complete in playlist list
+                markEntryDone(batchIndex);
+
+                batchItemStatus.textContent = `✓ Download started! Saving to your device...`;
+
+                // Pause briefly to let browser stream establish, then proceed to next
+                setTimeout(() => {
+                    batchIndex++;
+                    processNextBatchItem(preset);
+                }, 1200);
+            }
+        }, 300);
+
+        // Safety timeout per item (90s)
+        batchItemTimeoutTimer = setTimeout(() => {
+            if (batchIsRunning && batchPollTimer) {
+                clearInterval(batchPollTimer);
+                batchItemStatus.textContent = `⚠️ Taking longer than expected. Moving to next video...`;
+                setTimeout(() => {
+                    batchIndex++;
+                    processNextBatchItem(preset);
+                }, 1500);
+            }
+        }, 90000);
+    }
+
+    function markEntryDone(idx) {
+        const card = document.querySelector(`.playlist-entry-card[data-index="${idx}"]`);
+        if (card) {
+            const checkCol = card.querySelector('.entry-checkbox-col');
+            if (checkCol) {
+                checkCol.innerHTML = '<span class="entry-done-check" title="Downloaded">✓</span>';
+            }
+            card.classList.add('entry-downloaded');
+        }
+    }
+
+    function stopBatchQueue() {
+        batchIsRunning = false;
+        clearInterval(batchPollTimer);
+        clearTimeout(batchItemTimeoutTimer);
+        batchItemStatus.textContent = '⏹️ Batch queue stopped by user.';
+        btnBatchDone.classList.remove('hidden');
+        btnBatchSkip.classList.add('hidden');
+        btnBatchStop.classList.add('hidden');
+    }
+
+    function skipBatchItem() {
+        if (!batchIsRunning) return;
+        clearInterval(batchPollTimer);
+        clearTimeout(batchItemTimeoutTimer);
+        batchItemStatus.textContent = '⏭️ Skipped video. Loading next...';
+        setTimeout(() => {
+            batchIndex++;
+            const presetSelect = document.getElementById('batch-preset-select');
+            const presets = {
+                'best_mp4': { format_id: 'bestvideo+bestaudio/best', ext: 'mp4', type: 'video', label: 'Best MP4' },
+                'fast_mp4': { format_id: '18', ext: 'mp4', type: 'video', label: '360p MP4' },
+                'mp3':      { format_id: 'mp3', ext: 'mp3', type: 'audio', label: 'MP3 Audio' },
+                'm4a':      { format_id: '140', ext: 'm4a', type: 'audio', label: 'M4A Audio' }
+            };
+            const currentPreset = presets[presetSelect ? presetSelect.value : 'best_mp4'] || presets['best_mp4'];
+            processNextBatchItem(currentPreset);
+        }, 600);
+    }
+
+    if (batchModalClose) {
+        batchModalClose.addEventListener('click', () => {
+            stopBatchQueue();
+            batchModal.classList.add('hidden');
+        });
+    }
+    if (btnBatchStop) btnBatchStop.addEventListener('click', stopBatchQueue);
+    if (btnBatchSkip) btnBatchSkip.addEventListener('click', skipBatchItem);
+    if (btnBatchDone) btnBatchDone.addEventListener('click', () => {
+        batchModal.classList.add('hidden');
+    });
 
     // ── Build Download URL ────────────────────────────────────────
     function buildDlUrl(fmt, data, overrideExt, type) {

@@ -38,6 +38,7 @@ if ($config['RATE_LIMIT_ENABLED']) {
 
 if ($request['action'] === 'analyze') {
     $url      = $request['url'] ?? '';
+    $mode     = $request['mode'] ?? 'auto';
     $validUrl = Validator::sanitizeUrl($url);
 
     if (!$validUrl) {
@@ -45,7 +46,7 @@ if ($request['action'] === 'analyze') {
     }
 
     $cache    = new Cache($config);
-    $cacheKey = 'extract_v4_' . md5($validUrl);
+    $cacheKey = 'extract_v5_' . md5($validUrl . '_' . $mode);
 
     $cachedData = $cache->get($cacheKey);
     if ($cachedData) {
@@ -59,7 +60,7 @@ if ($request['action'] === 'analyze') {
             $extractor = new ExternalApiExtractor($config);
         }
 
-        $data = $extractor->extract($validUrl);
+        $data = $extractor->extract($validUrl, $mode);
         $data = buildDownloadOptions($data, $validUrl);
 
         $cache->set($cacheKey, $data);
@@ -94,6 +95,10 @@ if ($request['action'] === 'analyze') {
  *   - "140"       → audio only 130k
  */
 function buildDownloadOptions(array $data, string $originalUrl): array {
+    if (($data['type'] ?? '') === 'playlist') {
+        return $data;
+    }
+
     $formats       = $data['formats'];
     $ffmpegAvail   = $data['ffmpeg_available'] ?? false;
 

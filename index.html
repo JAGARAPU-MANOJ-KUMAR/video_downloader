@@ -72,21 +72,48 @@
 
                     <!-- Actual Results -->
                     <div id="result-content" class="result-content hidden">
-                        <div class="video-preview">
-                            <div class="thumb-container">
-                                <img id="res-thumbnail" src="" alt="Video Thumbnail" loading="lazy">
-                                <span id="res-duration" class="duration-badge"></span>
+
+                        <!-- Playlist Suggestion Banner (shown when a video is part of a playlist) -->
+                        <div id="playlist-banner" class="playlist-banner hidden">
+                            <div class="pl-banner-text">
+                                <span class="pl-banner-icon">📋</span>
+                                <div>
+                                    <strong>Part of a Playlist</strong>
+                                    <p>This video belongs to a playlist. You can view all videos and download the full playlist.</p>
+                                </div>
                             </div>
-                            <div class="video-info">
-                                <h2 id="res-title" class="video-title"></h2>
-                                <p class="platform-badge" id="res-platform"></p>
-                                <p id="res-uploader" class="uploader-name hidden"></p>
+                            <button type="button" id="btn-load-playlist" class="btn-load-pl">
+                                <span>View Full Playlist</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Single Video View -->
+                        <div id="single-video-view">
+                            <div class="video-preview">
+                                <div class="thumb-container">
+                                    <img id="res-thumbnail" src="" alt="Video Thumbnail" loading="lazy">
+                                    <span id="res-duration" class="duration-badge"></span>
+                                </div>
+                                <div class="video-info">
+                                    <h2 id="res-title" class="video-title"></h2>
+                                    <p class="platform-badge" id="res-platform"></p>
+                                    <p id="res-uploader" class="uploader-name hidden"></p>
+                                </div>
+                            </div>
+
+                            <div class="formats-container">
+                                <!-- Rendered dynamically by script.js -->
                             </div>
                         </div>
 
-                        <div class="formats-container">
+                        <!-- Playlist View -->
+                        <div id="playlist-view" class="playlist-view hidden">
                             <!-- Rendered dynamically by script.js -->
                         </div>
+
                     </div>
 
                 </div>
@@ -232,6 +259,50 @@
 
             <div id="dl-modal-footer" class="dl-modal-footer hidden">
                 <a id="dl-modal-direct" href="#" class="btn-direct-dl">Click here if download doesn't start automatically</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Batch Playlist Download Modal ─────────────────────────────── -->
+    <div id="batch-modal" class="dl-modal hidden" role="dialog" aria-modal="true" aria-labelledby="batch-modal-title">
+        <div class="dl-modal-backdrop"></div>
+        <div class="dl-modal-card batch-modal-card">
+            <button id="batch-modal-close" class="dl-modal-close" aria-label="Close modal">&times;</button>
+            
+            <div class="batch-header">
+                <div class="batch-icon">📦</div>
+                <div>
+                    <h3 id="batch-modal-title" class="dl-modal-title">Batch Playlist Downloader</h3>
+                    <p id="batch-modal-subtitle" class="batch-subtitle">Downloading <span id="batch-current-num">1</span> of <span id="batch-total-num">0</span> items</p>
+                </div>
+            </div>
+
+            <!-- Overall Progress -->
+            <div class="batch-overall-section">
+                <div class="batch-progress-info">
+                    <span class="batch-lbl">Overall Progress</span>
+                    <span id="batch-overall-percent" class="batch-percent">0%</span>
+                </div>
+                <div class="dl-progress-track">
+                    <div id="batch-overall-bar" class="dl-progress-bar" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <!-- Current Active Video Card -->
+            <div class="batch-current-item">
+                <img id="batch-item-thumb" class="batch-item-thumb" src="" alt="Current Video">
+                <div class="batch-item-details">
+                    <span id="batch-item-badge" class="dl-modal-badge">Best MP4</span>
+                    <h4 id="batch-item-title" class="batch-item-title">Video title...</h4>
+                    <p id="batch-item-status" class="batch-item-status">⚡ Preparing download...</p>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="batch-controls">
+                <button type="button" id="btn-batch-skip" class="btn-batch-secondary">⏭️ Skip This</button>
+                <button type="button" id="btn-batch-stop" class="btn-batch-danger">⏹️ Stop Queue</button>
+                <button type="button" id="btn-batch-done" class="btn-batch-primary hidden">✓ Done / Close</button>
             </div>
         </div>
     </div>

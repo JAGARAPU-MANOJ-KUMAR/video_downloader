@@ -1,6 +1,6 @@
 <?php
 interface ExtractorInterface {
-    public function extract($url);
+    public function extract($url, $mode = 'auto');
 }
 
 class YtDlpExtractor implements ExtractorInterface {
@@ -36,7 +36,7 @@ class YtDlpExtractor implements ExtractorInterface {
         }
     }
 
-    public function extract($url) {
+    public function extract($url, $mode = 'auto') {
         if (!function_exists('exec')) {
             throw new Exception("exec() is not available on this server.");
         }
@@ -49,15 +49,22 @@ class YtDlpExtractor implements ExtractorInterface {
         // Check for optional cookies.txt in project root for authenticated/bot-challenged videos
         $cookieFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'cookies.txt';
 
+        $isPlaylist = ($mode === 'playlist') ||
+                      (stripos($url, '/playlist') !== false) ||
+                      (stripos($url, 'list=') !== false && stripos($url, 'v=') === false);
+
         $cmd = '"' . $this->exePath . '"'
              . ' --dump-single-json'
              . ' --no-warnings'
-             . ' --no-playlist'
              . ' --no-check-formats'
              . ' --skip-download'
-             . ' --write-subs'
-             . ' --write-auto-subs'
              . ' --js-runtimes node';
+
+        if ($isPlaylist) {
+            $cmd .= ' --flat-playlist';
+        } else {
+            $cmd .= ' --no-playlist --write-subs --write-auto-subs';
+        }
 
         if (file_exists($cookieFile) && is_readable($cookieFile)) {
             $cmd .= ' --cookies ' . escapeshellarg($cookieFile);
@@ -70,14 +77,15 @@ class YtDlpExtractor implements ExtractorInterface {
         $cmd .= ' ' . escapeshellarg($url) . ' 2>&1';
 
         // Windows: use proc_open for proper timeout
+        $timeout = $isPlaylist ? max($this->timeout, 45) : $this->timeout;
         if ($isWin) {
-            $data = $this->execWithTimeout($cmd, $this->timeout);
+            $data = $this->execWithTimeout($cmd, $timeout);
         } else {
-            $cmd = "timeout " . (int)$this->timeout . " " . $cmd;
-            $data = $this->execWithTimeout($cmd, $this->timeout + 5);
+            $cmd = "timeout " . (int)$timeout . " " . $cmd;
+            $data = $this->execWithTimeout($cmd, $timeout + 5);
         }
 
-        return $this->normalize($data);
+        return $this->normalize($data, $url);
     }
 
     private function execWithTimeout(string $cmd, int $timeout): array {
@@ -131,7 +139,59 @@ class YtDlpExtractor implements ExtractorInterface {
         return $data;
     }
 
-    private function normalize(array $raw): array {
+    private function normalize(array $raw, string $sourceUrl = ''): array {
+        // Handle Playlist Type
+        if (($raw['_type'] ?? '') === 'playlist') {
+            $entries = [];
+            foreach ($raw['entries'] ?? [] as $e) {
+                if (empty($e) || !is_array($e)) continue;
+                $eId = $e['id'] ?? '';
+                if (!$eId) continue;
+
+                $eUrl = $e['url'] ?? ('https://www.youtube.com/watch?v=' . $eId);
+                $thumb = '';
+                if (!empty($e['thumbnails']) && is_array($e['thumbnails'])) {
+                    $thumb = end($e['thumbnails'])['url'] ?? '';
+                }
+                if (!$thumb && $eId) {
+                    $thumb = 'https://i.ytimg.com/vi/' . $eId . '/hqdefault.jpg';
+                }
+
+                $entries[] = [
+                    'index'     => count($entries) + 1,
+                    'id'        => $eId,
+                    'title'     => $e['title'] ?? ('Video ' . (count($entries) + 1)),
+                    'duration'  => $e['duration'] ?? 0,
+                    'uploader'  => $e['uploader'] ?? $e['channel'] ?? '',
+                    'thumbnail' => $thumb,
+                    'url'       => $eUrl,
+                ];
+            }
+
+            $plThumb = '';
+            if (!empty($raw['thumbnails']) && is_array($raw['thumbnails'])) {
+                $plThumb = end($raw['thumbnails'])['url'] ?? '';
+            }
+            if (!$plThumb && !empty($entries[0]['thumbnail'])) {
+                $plThumb = $entries[0]['thumbnail'];
+            }
+
+            return [
+                'type'             => 'playlist',
+                'platform'         => $raw['extractor'] ?? 'youtube:playlist',
+                'extractor_key'    => $raw['extractor_key'] ?? 'YoutubePlaylist',
+                'id'               => $raw['id'] ?? '',
+                'title'            => $raw['title'] ?? 'YouTube Playlist',
+                'uploader'         => $raw['uploader'] ?? $raw['channel'] ?? '',
+                'view_count'       => $raw['view_count'] ?? null,
+                'total_videos'     => count($entries),
+                'thumbnail'        => $plThumb,
+                'source_url'       => $raw['webpage_url'] ?? $raw['original_url'] ?? $sourceUrl,
+                'entries'          => $entries,
+                'ffmpeg_available' => !empty($this->ffmpegPath),
+            ];
+        }
+
         $formats   = [];
         $seen      = [];
 
@@ -289,7 +349,7 @@ class YtDlpExtractor implements ExtractorInterface {
 class ExternalApiExtractor implements ExtractorInterface {
     public function __construct($config) {}
 
-    public function extract($url) {
+    public function extract($url, $mode = 'auto') {
         return [
             'platform'         => 'MockAPI (Set EXTRACTION_MODE=YTDLP in config.php)',
             'extractor_key'    => 'MockAPI',
