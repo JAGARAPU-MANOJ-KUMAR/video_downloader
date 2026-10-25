@@ -53,6 +53,10 @@ class YtDlpExtractor implements ExtractorInterface {
              . ' --dump-single-json'
              . ' --no-warnings'
              . ' --no-playlist'
+             . ' --no-check-formats'
+             . ' --skip-download'
+             . ' --write-subs'
+             . ' --write-auto-subs'
              . ' --js-runtimes node';
 
         if (file_exists($cookieFile) && is_readable($cookieFile)) {
@@ -188,47 +192,92 @@ class YtDlpExtractor implements ExtractorInterface {
             return $dh !== 0 ? $dh : (($b['tbr'] ?? 0) - ($a['tbr'] ?? 0));
         });
 
-        // Extract Subtitles
-        $subtitles = [];
-        $seenLangs = [];
+        // Extract Subtitles: Dynamically separate actual present subtitles from 150+ machine translations
+        $presentSubtitles = [];
+        $autoTranslated   = [];
+        $seenLangs        = [];
 
-        // 1. Manual subtitles (human uploaded - high quality)
+        // 1. Manual subtitles (human uploaded by video creator - highest quality, real present subs)
         foreach ($raw['subtitles'] ?? [] as $langCode => $subs) {
             if (empty($subs)) continue;
             $name = $subs[0]['name'] ?? $langCode;
             $seenLangs[$langCode] = true;
-            $subtitles[] = [
-                'lang'    => $langCode,
-                'name'    => $name,
-                'is_auto' => false,
+            $presentSubtitles[] = [
+                'lang'        => $langCode,
+                'name'        => $name,
+                'is_auto'     => false,
+                'is_original' => true,
             ];
         }
 
-        // 2. Automatic captions
+        // 2. Identify the video's actual original spoken language automatic caption
+        $origKey = null;
+        foreach ($raw['automatic_captions'] ?? [] as $langCode => $subs) {
+            if (empty($subs)) continue;
+            $subName = $subs[0]['name'] ?? '';
+            if (str_ends_with($langCode, '-orig') || stripos($subName, 'original') !== false) {
+                $origKey = $langCode;
+                break;
+            }
+        }
+
+        // Fallback: match primary language if no explicit -orig key found
+        if (!$origKey && !empty($raw['automatic_captions'])) {
+            $primaryLang = $raw['language'] ?? '';
+            if (!$primaryLang && !empty($raw['formats'])) {
+                foreach ($raw['formats'] as $f) {
+                    if (!empty($f['language'])) { $primaryLang = $f['language']; break; }
+                }
+            }
+            if ($primaryLang && isset($raw['automatic_captions'][$primaryLang])) {
+                $origKey = $primaryLang;
+            } elseif (empty($presentSubtitles)) {
+                $keys = array_keys($raw['automatic_captions']);
+                $origKey = $keys[0] ?? null;
+            }
+        }
+
+        if ($origKey && isset($raw['automatic_captions'][$origKey])) {
+            $subs = $raw['automatic_captions'][$origKey];
+            $name = $subs[0]['name'] ?? $origKey;
+            $seenLangs[$origKey] = true;
+            $baseCode = preg_replace('/-orig$/', '', $origKey);
+            $seenLangs[$baseCode] = true;
+
+            $presentSubtitles[] = [
+                'lang'        => $origKey,
+                'name'        => $name,
+                'is_auto'     => true,
+                'is_original' => true,
+            ];
+        }
+
+        // 3. Put all machine auto-translations in auto_translations
         foreach ($raw['automatic_captions'] ?? [] as $langCode => $subs) {
             if (empty($subs) || isset($seenLangs[$langCode])) continue;
             $name = $subs[0]['name'] ?? $langCode;
-            $seenLangs[$langCode] = true;
-            $subtitles[] = [
-                'lang'    => $langCode,
-                'name'    => $name,
-                'is_auto' => true,
+            $autoTranslated[] = [
+                'lang'        => $langCode,
+                'name'        => $name,
+                'is_auto'     => true,
+                'is_original' => false,
             ];
         }
 
         return [
-            'platform'      => $raw['extractor']     ?? 'unknown',
-            'extractor_key' => $raw['extractor_key'] ?? '',
-            'type'          => 'video',
-            'id'            => $raw['id']            ?? '',
-            'title'         => $raw['title']         ?? 'Unknown Title',
-            'thumbnail'     => $raw['thumbnail']     ?? '',
-            'duration'      => $raw['duration']      ?? 0,
-            'uploader'      => $raw['uploader']      ?? '',
-            'view_count'    => $raw['view_count']    ?? null,
-            'formats'       => $formats,
-            'subtitles'     => $subtitles,
-            'ffmpeg_available' => !empty($this->ffmpegPath),
+            'platform'          => $raw['extractor']     ?? 'unknown',
+            'extractor_key'     => $raw['extractor_key'] ?? '',
+            'type'              => 'video',
+            'id'                => $raw['id']            ?? '',
+            'title'             => $raw['title']         ?? 'Unknown Title',
+            'thumbnail'         => $raw['thumbnail']     ?? '',
+            'duration'          => $raw['duration']      ?? 0,
+            'uploader'          => $raw['uploader']      ?? '',
+            'view_count'        => $raw['view_count']    ?? null,
+            'formats'           => $formats,
+            'subtitles'         => $presentSubtitles,
+            'auto_translations' => $autoTranslated,
+            'ffmpeg_available'  => !empty($this->ffmpegPath),
         ];
     }
 

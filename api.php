@@ -45,7 +45,7 @@ if ($request['action'] === 'analyze') {
     }
 
     $cache    = new Cache($config);
-    $cacheKey = 'extract_v3_' . md5($validUrl);
+    $cacheKey = 'extract_v4_' . md5($validUrl);
 
     $cachedData = $cache->get($cacheKey);
     if ($cachedData) {

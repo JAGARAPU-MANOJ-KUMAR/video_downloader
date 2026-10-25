@@ -399,7 +399,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Subtitles Pane ────────────────────────────────────────────
     function renderSubtitlesPane(container, subtitles, data) {
-        if (!subtitles.length) {
+        const autoTranslations = data.auto_translations || [];
+
+        if (!subtitles.length && !autoTranslations.length) {
             container.innerHTML = `
                 <div class="empty-subs-box">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="40" height="40">
@@ -412,93 +414,158 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const toolbar = document.createElement('div');
-        toolbar.className = 'subs-toolbar';
-        toolbar.innerHTML = `
-            <div class="subs-search-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input type="text" id="subs-filter-input" placeholder="Search language (e.g. English, Spanish, Telugu, Hindi)...">
+        container.innerHTML = '';
+
+        // Header for Present Subtitles
+        const header = document.createElement('div');
+        header.className = 'subs-present-header';
+        header.innerHTML = `
+            <div class="subs-header-left">
+                <h4 class="subs-section-title">Available Subtitles</h4>
+                <span class="subs-count-badge">${subtitles.length} track${subtitles.length === 1 ? '' : 's'} present on this video</span>
             </div>
-            <span class="subs-count-badge">${subtitles.length} tracks available</span>
         `;
-        container.appendChild(toolbar);
+        container.appendChild(header);
 
-        const grid = document.createElement('div');
-        grid.className = 'subs-grid';
+        // 1. Grid of Present Subtitles (Creator uploaded or original transcript only)
+        if (subtitles.length) {
+            const grid = document.createElement('div');
+            grid.className = 'subs-grid';
+            subtitles.forEach(sub => grid.appendChild(createSubCard(sub, data)));
+            container.appendChild(grid);
+        } else {
+            const noOrig = document.createElement('div');
+            noOrig.className = 'subs-note';
+            noOrig.textContent = 'No official creator subtitles uploaded. Auto-translated captions may be available below.';
+            container.appendChild(noOrig);
+        }
 
-        subtitles.forEach(sub => {
-            const item = document.createElement('div');
-            item.className = 'sub-card';
-            item.dataset.langName = (sub.name || '').toLowerCase();
-            item.dataset.langCode = (sub.lang || '').toLowerCase();
-
-            const srtUrl = 'download.php'
-                + '?url='      + encodeURIComponent(data.source_url || currentVideoUrl)
-                + '&type=subtitle'
-                + '&sub_lang=' + encodeURIComponent(sub.lang)
-                + '&ext=srt'
-                + '&title='    + encodeURIComponent(data.title || 'subtitles');
-
-            const vttUrl = 'download.php'
-                + '?url='      + encodeURIComponent(data.source_url || currentVideoUrl)
-                + '&type=subtitle'
-                + '&sub_lang=' + encodeURIComponent(sub.lang)
-                + '&ext=vtt'
-                + '&title='    + encodeURIComponent(data.title || 'subtitles');
-
-            item.innerHTML = `
-                <div class="sub-info">
-                    <div class="sub-name-row">
-                        <strong class="sub-name">${sub.name || sub.lang}</strong>
-                        <span class="sub-code">${sub.lang}</span>
+        // 2. Expandable Auto-Translations Drawer (for translated machine captions)
+        if (autoTranslations.length) {
+            const transSection = document.createElement('div');
+            transSection.className = 'auto-trans-section';
+            transSection.innerHTML = `
+                <button type="button" class="btn-toggle-auto-trans" id="toggle-trans-btn">
+                    <div class="toggle-btn-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        <span>Need another language? Show Auto-Translated Captions (${autoTranslations.length})</span>
                     </div>
-                    <span class="badge ${sub.is_auto ? 'badge-auto-sub' : 'badge-official-sub'}">
-                        ${sub.is_auto ? '🤖 Auto-generated' : '✓ Official Subtitle'}
-                    </span>
-                </div>
-                <div class="sub-actions">
-                    <button type="button" class="btn-sub-dl" data-dl-url="${srtUrl}" data-dl-title="${safeAttr(data.title)}" data-dl-badge="${sub.name || sub.lang} · SRT" title="Download SubRip (.SRT) subtitle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        .SRT
-                    </button>
-                    <button type="button" class="btn-sub-dl btn-sub-vtt" data-dl-url="${vttUrl}" data-dl-title="${safeAttr(data.title)}" data-dl-badge="${sub.name || sub.lang} · VTT" title="Download WebVTT (.VTT) subtitle">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        .VTT
-                    </button>
+                    <svg class="chevron-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="auto-trans-drawer hidden" id="trans-drawer">
+                    <div class="subs-toolbar">
+                        <div class="subs-search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" id="trans-filter-input" placeholder="Search auto-translated languages (e.g. Spanish, Telugu, French)...">
+                        </div>
+                        <span class="subs-count-badge" id="trans-count-badge">${autoTranslations.length} languages</span>
+                    </div>
+                    <div class="subs-grid" id="trans-grid"></div>
                 </div>
             `;
-            grid.appendChild(item);
-        });
+            container.appendChild(transSection);
 
-        container.appendChild(grid);
+            const toggleBtn   = transSection.querySelector('#toggle-trans-btn');
+            const drawer      = transSection.querySelector('#trans-drawer');
+            const transGrid   = transSection.querySelector('#trans-grid');
+            const filterInput = transSection.querySelector('#trans-filter-input');
+            const countBadge  = transSection.querySelector('#trans-count-badge');
+            let isRendered    = false;
 
-        // Real-time language search
-        const filterInput = toolbar.querySelector('#subs-filter-input');
-        filterInput.addEventListener('input', (e) => {
-            const query = e.target.value.trim().toLowerCase();
-            const cards = grid.querySelectorAll('.sub-card');
-            let visibleCount = 0;
-            cards.forEach(card => {
-                const match = card.dataset.langName.includes(query) || card.dataset.langCode.includes(query);
-                card.style.display = match ? 'flex' : 'none';
-                if (match) visibleCount++;
+            toggleBtn.addEventListener('click', () => {
+                const isOpen = !drawer.classList.contains('hidden');
+                if (isOpen) {
+                    drawer.classList.add('hidden');
+                    toggleBtn.classList.remove('active');
+                } else {
+                    drawer.classList.remove('hidden');
+                    toggleBtn.classList.add('active');
+                    if (!isRendered) {
+                        autoTranslations.forEach(sub => transGrid.appendChild(createSubCard(sub, data)));
+                        isRendered = true;
+                    }
+                }
             });
-            const badge = toolbar.querySelector('.subs-count-badge');
-            if (badge) {
-                badge.textContent = query ? `${visibleCount} of ${subtitles.length} shown` : `${subtitles.length} tracks available`;
+
+            if (filterInput) {
+                filterInput.addEventListener('input', (e) => {
+                    const query = e.target.value.trim().toLowerCase();
+                    const cards = transGrid.querySelectorAll('.sub-card');
+                    let visibleCount = 0;
+                    cards.forEach(card => {
+                        const match = card.dataset.langName.includes(query) || card.dataset.langCode.includes(query);
+                        card.style.display = match ? 'flex' : 'none';
+                        if (match) visibleCount++;
+                    });
+                    if (countBadge) {
+                        countBadge.textContent = query ? `${visibleCount} of ${autoTranslations.length} shown` : `${autoTranslations.length} languages`;
+                    }
+                });
             }
-        });
+        }
+    }
+
+    function createSubCard(sub, data) {
+        const item = document.createElement('div');
+        item.className = 'sub-card';
+        item.dataset.langName = (sub.name || '').toLowerCase();
+        item.dataset.langCode = (sub.lang || '').toLowerCase();
+
+        const srtUrl = 'download.php'
+            + '?url='      + encodeURIComponent(data.source_url || currentVideoUrl)
+            + '&type=subtitle'
+            + '&sub_lang=' + encodeURIComponent(sub.lang)
+            + '&ext=srt'
+            + '&title='    + encodeURIComponent(data.title || 'subtitles');
+
+        const vttUrl = 'download.php'
+            + '?url='      + encodeURIComponent(data.source_url || currentVideoUrl)
+            + '&type=subtitle'
+            + '&sub_lang=' + encodeURIComponent(sub.lang)
+            + '&ext=vtt'
+            + '&title='    + encodeURIComponent(data.title || 'subtitles');
+
+        const badgeHtml = sub.is_original
+            ? (sub.is_auto ? '<span class="badge badge-auto-sub">🎙️ Original Spoken Transcript</span>' : '<span class="badge badge-official-sub">✓ Creator Uploaded</span>')
+            : '<span class="badge badge-auto-sub">🌐 Machine Translation</span>';
+
+        item.innerHTML = `
+            <div class="sub-info">
+                <div class="sub-name-row">
+                    <strong class="sub-name">${sub.name || sub.lang}</strong>
+                    <span class="sub-code">${sub.lang}</span>
+                </div>
+                ${badgeHtml}
+            </div>
+            <div class="sub-actions">
+                <button type="button" class="btn-sub-dl" data-dl-url="${srtUrl}" data-dl-title="${safeAttr(data.title)}" data-dl-badge="${sub.name || sub.lang} · SRT" title="Download SubRip (.SRT) subtitle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    .SRT
+                </button>
+                <button type="button" class="btn-sub-dl btn-sub-vtt" data-dl-url="${vttUrl}" data-dl-title="${safeAttr(data.title)}" data-dl-badge="${sub.name || sub.lang} · VTT" title="Download WebVTT (.VTT) subtitle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    .VTT
+                </button>
+            </div>
+        `;
+        return item;
     }
 
     // ── Fast In-Page Download Execution with Progress Feedback ────
